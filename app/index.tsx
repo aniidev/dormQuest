@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { db } from '../firebase.js';
 
 export default function HomeScreen() {
@@ -21,13 +21,11 @@ export default function HomeScreen() {
         return;
       }
 
-      // Save new dorm to Firestore
       await setDoc(dormRef, {
         dorm: dormTrimmed,
         timestamp: Date.now(),
       });
 
-      // Navigate to dare screen
       router.push({ pathname: '/dare', params: { dorm: dormTrimmed } });
     } catch (error) {
       console.error("Error checking or saving dorm to Firestore:", error);
@@ -36,43 +34,92 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Enter Your Dorm Number</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g. A-103"
-        placeholderTextColor="#888"
-        value={dorm}
-        onChangeText={setDorm}
-        autoCapitalize="characters"
-      />
-      <Button title="Continue" onPress={handleContinue} />
+    <View style={styles.screen}>
+      <View style={styles.card}>
+        <Text style={styles.title}>Your Dorm Room</Text>
+        <Text style={styles.subtitle}>Enter your dorm number to join</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. A-103"
+          placeholderTextColor="#6B6B6B"
+          value={dorm}
+          onChangeText={setDorm}
+          autoCapitalize="characters"
+        />
+        <Pressable style={styles.button} onPress={handleContinue}>
+          <Text style={styles.buttonText}>Continue</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
+    backgroundColor: '#22242A',
     justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#121212',  // dark background
+    alignItems: 'center',
+  },
+  card: {
+    backgroundColor: '#23242C',
+    borderRadius: 24,
+    padding: 28,
+    width: '90%',
+    maxWidth: 360,
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 16,
-    color: '#fff',  // light text
+    color: '#FFF',
+    fontSize: 23,
+    fontWeight: 'bold',
+    marginBottom: 8,
     textAlign: 'center',
   },
+  subtitle: {
+    color: '#BFC2CD',
+    fontSize: 15,
+    marginBottom: 24,
+    textAlign: 'center',
+    fontWeight: '500'
+  },
   input: {
-    borderWidth: 1,
-    borderColor: '#444',
-    padding: 12,
+    width: '100%',
+    backgroundColor: '#282931',
+    color: '#FFF',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 26,
     fontSize: 18,
-    borderRadius: 8,
-    marginBottom: 16,
-    color: '#fff',  // light input text
-    backgroundColor: '#222',  // dark input background
+    borderWidth: 1,
+    borderColor: '#35363B',
+    fontWeight: '600',
+    letterSpacing: 1,
+    textAlign: 'center'
+  },
+  button: {
+    backgroundColor: '#FFD600',
+    borderRadius: 32,
+    width: '80%',
+    paddingVertical: 14,
+    alignItems: 'center',
+    shadowColor: "#FFD600",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    marginTop: 10,
+  },
+  buttonText: {
+    color: '#23242C',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });

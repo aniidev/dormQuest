@@ -2,12 +2,10 @@ import { useLocalSearchParams } from 'expo-router';
 import { collection, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-  Button,
-  ScrollView,
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { db } from '../firebase.js';
 
@@ -16,7 +14,7 @@ const sampleDares = [
   "Post an awkward selfie with the person living at {{room}} to your story with no caption.",
   "Sing your favorite song outside {{room}}.",
   "Go to {{room}} and make a TikTok dance video with the other person.",
-  "Give a tour of room {{room}} to the owner.",
+  "Give a tour of room {{room}} to its owner.",
   "Ask if you can sleepover at {{room}}.",
   "Pull up in the worst fit possible to dorm {{room}} and ask them to rate it.",
   "Say a pickup line to the person at dorm {{room}}."
@@ -26,8 +24,7 @@ const sampleSocial = [
   "Knock on the door of room {{room}} and give them a compliment.",
   "Challenge room {{room}} to a thumb war.",
   "Ask the person in {{room}} what their favorite song is.",
-  "Offer a snack to someone in {{room}}.",
-  "Ask the person at {{room}} for one fun fact about themselves.",
+  "Offer a snack to someone in {{room}}."
 ];
 
 const socialTopics = [
@@ -37,6 +34,10 @@ const socialTopics = [
   "What's your weirdest dorm story?",
   "Do you believe in ghosts in the dorm?",
 ];
+
+const RED = "#f44336";
+const BLUE = "#1e88e5";
+const GREY_TEXT = "#8B95A1";
 
 export default function DareScreen() {
   const { dorm } = useLocalSearchParams();
@@ -55,7 +56,6 @@ export default function DareScreen() {
         console.error("Error fetching dorms:", error);
       }
     };
-
     fetchDorms();
   }, []);
 
@@ -67,102 +67,196 @@ export default function DareScreen() {
 
   const generateChallenge = () => {
     if (!dormNumber) return;
-
-    const floorLetter = dormNumber[0];
-    const randomRoomNum = Math.floor(Math.random() * 50 + 100);
     const availableDorms = publicDorms.filter(d => d !== dormNumber);
     const targetRoom =
-  availableDorms.length > 0
-    ? availableDorms[Math.floor(Math.random() * availableDorms.length)]
-    : dormNumber;
-
+      availableDorms.length > 0
+        ? availableDorms[Math.floor(Math.random() * availableDorms.length)]
+        : dormNumber;
     let selected: string;
-
     if (challengeType === 'dare') {
       const rand = sampleDares[Math.floor(Math.random() * sampleDares.length)];
       selected = rand.replace('{{room}}', targetRoom);
     } else {
       const challenge = sampleSocial[Math.floor(Math.random() * sampleSocial.length)];
       const topic = socialTopics[Math.floor(Math.random() * socialTopics.length)];
-      selected = `${challenge.replace('{{room}}', targetRoom)}\n🗣 Bonus topic: ${topic}`;
+      selected = `${challenge.replace('{{room}}', targetRoom)}\n\n🗣 Bonus topic: ${topic}`;
     }
-
     setChallenge(selected);
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Your Challenge</Text>
-
-      <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={[styles.optionBtn, challengeType === 'dare' && styles.selectedBtn]}
-          onPress={() => setChallengeType('dare')}
-        >
-          <Text style={styles.optionText}>🎯 Dare</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.optionBtn, challengeType === 'social' && styles.selectedBtn]}
-          onPress={() => setChallengeType('social')}
-        >
-          <Text style={styles.optionText}>🗣️ Social</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Button color="#1e90ff" title="Generate Challenge" onPress={generateChallenge} />
-
-      {challenge && (
-        <View style={styles.dareBox}>
-          <Text style={styles.dareText}>{challenge}</Text>
+    <View style={styles.screen}>
+      <View style={styles.card}>
+        <Text style={styles.title}>Your Challenge</Text>
+        <View style={styles.segmented}>
+          <Pressable
+            style={[
+              styles.segmentBtn,
+              challengeType === 'dare' && styles.selectedRedSegment,
+            ]}
+            onPress={() => setChallengeType('dare')}
+          >
+            <Text style={[
+              styles.segmentText,
+              challengeType === 'dare' ? styles.selectedSegmentTextRed : styles.unselectedSegmentText
+            ]}>🎯 Dare</Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.segmentBtn,
+              challengeType === 'social' && styles.selectedBlueSegment,
+            ]}
+            onPress={() => setChallengeType('social')}
+          >
+            <Text style={[
+              styles.segmentText,
+              challengeType === 'social' ? styles.selectedSegmentTextBlue : styles.unselectedSegmentText
+            ]}>🗣️ Social</Text>
+          </Pressable>
         </View>
-      )}
-    </ScrollView>
+
+        <Pressable
+          style={styles.buttonBlue}
+          onPress={generateChallenge}
+        >
+          <Text style={styles.buttonText}>{'Generate Challenge'}</Text>
+        </Pressable>
+
+        {challenge && (
+          <View style={styles.challengeBox}>
+            <Text style={[
+              styles.challengeText,
+              challengeType === 'dare' ? styles.challengeTextRed : styles.challengeTextBlue
+            ]}>
+              {challenge}
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
+  screen: {
+    flex: 1,
+    backgroundColor: '#22242A',
     justifyContent: 'center',
-    backgroundColor: '#121212',
-    flexGrow: 1,
+    alignItems: 'center',
+  },
+  card: {
+    backgroundColor: '#23242C',
+    borderRadius: 24,
+    paddingVertical: 30,
+    paddingHorizontal: 24,
+    width: '92%',
+    maxWidth: 400,
+    alignItems: 'center',
+    marginTop: 18,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 20,
-    textAlign: 'center',
-    color: '#fff',
+    color: '#FFF',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 24,
+    letterSpacing: 0.4,
   },
-  buttonRow: {
+  segmented: {
     flexDirection: 'row',
+    width: '100%',
     justifyContent: 'center',
-    marginBottom: 20,
-    gap: 12,
+    marginBottom: 18,
+    gap: 10,
   },
-  optionBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#333',
-    borderRadius: 8,
+  segmentBtn: {
+    flex: 1,
+    borderRadius: 14,
+    backgroundColor: '#292a32ff',
+    paddingVertical: 11,
+    alignItems: 'center',
+    marginHorizontal: 2,
   },
-  selectedBtn: {
-    backgroundColor: '#1e90ff',
+  selectedRedSegment: {
+    backgroundColor: RED,
+    shadowColor: RED,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.09,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  optionText: {
-    fontSize: 16,
-    color: '#fff',
+  selectedBlueSegment: {
+    backgroundColor: BLUE,
+    shadowColor: BLUE,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.09,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  dareBox: {
-    marginTop: 30,
-    backgroundColor: '#222',
-    padding: 20,
-    borderRadius: 10,
+  segmentText: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.8,
   },
-  dareText: {
+  selectedSegmentTextRed: {
+    color: '#23242C',
+  },
+  selectedSegmentTextBlue: {
+    color: '#23242C',
+  },
+  unselectedSegmentText: {
+    color: GREY_TEXT,
+  },
+  buttonBlue: {
+    backgroundColor: '#FFD600',
+    borderRadius: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 42,
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    marginTop: 8,
+    marginBottom: 25,
+    shadowColor: '#FFD600',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  buttonText: {
+    color: '#23242C',
+    fontSize: 15.5,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  challengeBox: {
+    backgroundColor: '#262931',
+    padding: 22,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    marginTop: 12,
+    alignItems: 'center',
+    minHeight: 120,
+    width: '100%',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#38383F',
+  },
+  challengeText: {
     fontSize: 18,
+    lineHeight: 27,
+    fontWeight: '600',
     textAlign: 'center',
-    fontWeight: '500',
-    color: '#90cdf4',
+    letterSpacing: 0.2,
+  },
+  challengeTextRed: {
+    color: RED,
+  },
+  challengeTextBlue: {
+    color: BLUE,
   },
 });
