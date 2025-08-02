@@ -3,12 +3,12 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
+  apiKey: 'AIzaSyANW_O1aLAQmHdzw-wd9mLHaLhhSWtz8qo',
+  authDomain: 'dormquest.firebaseapp.com',
+  projectId: 'dormquest',
+  storageBucket: 'dormquest.appspot.com',
+  messagingSenderId: '410080094214',
+  appId: '1:410080094214:web:592b27e463c7b92337fb87',
 };
 
 const app = initializeApp(firebaseConfig);

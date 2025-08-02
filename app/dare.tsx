@@ -1,13 +1,15 @@
 import { useLocalSearchParams } from 'expo-router';
+import { collection, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
-    Button,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Button,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { db } from '../firebase.js';
 
 const sampleDares = [
   "Slide a mystery love note under the door of {{room}}.",
@@ -41,6 +43,21 @@ export default function DareScreen() {
   const [challenge, setChallenge] = useState<string | null>(null);
   const [challengeType, setChallengeType] = useState<'dare' | 'social'>('dare');
   const [dormNumber, setDormNumber] = useState<string>('');
+  const [publicDorms, setPublicDorms] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchDorms = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'dorms'));
+        const dormList = snapshot.docs.map(doc => doc.data().dorm);
+        setPublicDorms(dormList);
+      } catch (error) {
+        console.error("Error fetching dorms:", error);
+      }
+    };
+
+    fetchDorms();
+  }, []);
 
   useEffect(() => {
     if (typeof dorm === 'string') {
@@ -53,7 +70,11 @@ export default function DareScreen() {
 
     const floorLetter = dormNumber[0];
     const randomRoomNum = Math.floor(Math.random() * 50 + 100);
-    const targetRoom = `${floorLetter}-${randomRoomNum}`;
+    const availableDorms = publicDorms.filter(d => d !== dormNumber);
+    const targetRoom =
+  availableDorms.length > 0
+    ? availableDorms[Math.floor(Math.random() * availableDorms.length)]
+    : dormNumber;
 
     let selected: string;
 
@@ -88,7 +109,7 @@ export default function DareScreen() {
         </TouchableOpacity>
       </View>
 
-      <Button title="Generate Challenge" onPress={generateChallenge} />
+      <Button color="#1e90ff" title="Generate Challenge" onPress={generateChallenge} />
 
       {challenge && (
         <View style={styles.dareBox}>
@@ -103,7 +124,7 @@ const styles = StyleSheet.create({
   container: {
     padding: 24,
     justifyContent: 'center',
-    backgroundColor: '#fefefe',
+    backgroundColor: '#121212',
     flexGrow: 1,
   },
   title: {
@@ -111,6 +132,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 20,
     textAlign: 'center',
+    color: '#fff',
   },
   buttonRow: {
     flexDirection: 'row',
@@ -121,19 +143,19 @@ const styles = StyleSheet.create({
   optionBtn: {
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: '#eee',
+    backgroundColor: '#333',
     borderRadius: 8,
   },
   selectedBtn: {
-    backgroundColor: '#0077ff',
+    backgroundColor: '#1e90ff',
   },
   optionText: {
     fontSize: 16,
-    color: '#000',
+    color: '#fff',
   },
   dareBox: {
     marginTop: 30,
-    backgroundColor: '#d0e8ff',
+    backgroundColor: '#222',
     padding: 20,
     borderRadius: 10,
   },
@@ -141,6 +163,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     fontWeight: '500',
-    color: '#003366',
+    color: '#90cdf4',
   },
 });
