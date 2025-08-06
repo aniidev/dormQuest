@@ -83,7 +83,7 @@ export default function DareScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.card}>
-        <Text style={styles.title}>Your Challenge</Text>
+        <Text style={styles.title}>Tasks</Text>
 
         <View style={styles.segmented}>
           <Pressable
@@ -128,12 +128,12 @@ export default function DareScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#22242A',
+    backgroundColor: '#09161f',
     justifyContent: 'center',
     alignItems: 'center',
   },
   card: {
-    backgroundColor: '#23242C',
+    backgroundColor: '#09161f',
     borderRadius: 24,
     paddingVertical: 30,
     paddingHorizontal: 24,
@@ -153,6 +153,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 24,
     letterSpacing: 0.4,
+    textAlign: 'center',
   },
   segmented: {
     flexDirection: 'row',
@@ -164,22 +165,24 @@ const styles = StyleSheet.create({
   segmentBtn: {
     flex: 1,
     borderRadius: 14,
-    backgroundColor: '#292a32ff',
+    backgroundColor: '#081620ff',
     paddingVertical: 11,
     alignItems: 'center',
     marginHorizontal: 2,
+    borderWidth: 1,
+    borderColor: '#35363B',
   },
   selectedRedSegment: {
-    backgroundColor: RED,
-    shadowColor: RED,
+    backgroundColor: '#df2b2bff',
+    shadowColor: '#2a6089',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.09,
     shadowRadius: 6,
     elevation: 4,
   },
   selectedBlueSegment: {
-    backgroundColor: BLUE,
-    shadowColor: BLUE,
+    backgroundColor: '#ddc433ff',
+    shadowColor: '#2a6089',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.09,
     shadowRadius: 6,
@@ -191,16 +194,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   selectedSegmentTextRed: {
-    color: '#23242C',
+    color: '#09161f',
   },
   selectedSegmentTextBlue: {
-    color: '#23242C',
+    color: '#09161f',
   },
   unselectedSegmentText: {
-    color: GREY_TEXT,
+    color: '#888',
   },
   buttonBlue: {
-    backgroundColor: '#FFD600',
+    backgroundColor: '#2a6089',
     borderRadius: 22,
     paddingVertical: 14,
     paddingHorizontal: 42,
@@ -208,21 +211,21 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginTop: 8,
     marginBottom: 25,
-    shadowColor: '#FFD600',
+    shadowColor: '#2a6089',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 6,
   },
   buttonText: {
-    color: '#23242C',
+    color: '#09161f',
     fontSize: 15.5,
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   challengeBox: {
-    backgroundColor: '#262931',
+    backgroundColor: '#081620ff',
     padding: 22,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -232,7 +235,7 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#38383F',
+    borderColor: '#35363B',
   },
   challengeText: {
     fontSize: 18,
@@ -242,20 +245,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   challengeTextRed: {
-    color: RED,
+    color: '#2a6089',
   },
   challengeTextBlue: {
-    color: BLUE,
+    color: '#2a6089',
   },
   logoutBtn: {
-  marginTop: 12,
-  backgroundColor: '#f44336',
-  paddingVertical: 8,
-  paddingHorizontal: 16,
-  borderRadius: 8,
-},
-logoutText: {
-  color: '#FFF',
-  fontWeight: '600',
-}
+    marginTop: 12,
+    backgroundColor: '#f44336',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  logoutText: {
+    color: '#FFF',
+    fontWeight: '600',
+  }
 });

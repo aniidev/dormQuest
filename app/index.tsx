@@ -2,13 +2,14 @@ import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { auth, db } from '../firebase.js';
 
 export default function HomeScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [dorm, setDorm] = useState('');
+  const [loading, setLoading] = useState(false); // Loading state
   const router = useRouter();
 
   const handleSignup = async () => {
@@ -19,6 +20,7 @@ export default function HomeScreen() {
     }
 
     try {
+      setLoading(true); // Start loading
       // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const uid = userCredential.user.uid;
@@ -35,8 +37,10 @@ export default function HomeScreen() {
         timestamp: Date.now()
       });
 
+      setLoading(false); // Stop loading before navigation
       router.push({ pathname: '/dare', params: { dorm: dormTrimmed } });
     } catch (error: any) {
+      setLoading(false);
       console.error("Signup error:", error);
       Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
     }
@@ -44,8 +48,13 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.screen}>
+      <Image
+        source={require('../assets/images/logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <View style={styles.card}>
-        <Text style={styles.title}>Register for DormDare</Text>
+        <Text style={styles.title}>Register</Text>
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -71,15 +80,22 @@ export default function HomeScreen() {
           onChangeText={setDorm}
           autoCapitalize="characters"
         />
-        <Pressable style={styles.button} onPress={handleSignup}>
-          <Text style={styles.buttonText}>Continue</Text>
-        </Pressable>
+
+        {/* Show loading circle instead of button when signing up */}
+        {loading ? (
+          <ActivityIndicator size="large" color="#2a6089" style={{ marginVertical: 14 }} />
+        ) : (
+          <Pressable style={styles.button} onPress={handleSignup}>
+            <Text style={styles.buttonText}>Continue</Text>
+          </Pressable>
+        )}
       </View>
+
       <Pressable onPress={() => router.push('/login')}>
-  <Text style={{ color: '#FFD600', marginTop: 12 }}>
-    Already have an account? Log in
-  </Text>
-</Pressable>
+        <Text style={{ color: '#2a6089', marginTop: 12 }}>
+          Already have an account? Log in
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -87,12 +103,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#22242A',
-    justifyContent: 'center',
+    backgroundColor: '#09161f',
+    justifyContent: 'flex-start',
     alignItems: 'center',
   },
   card: {
-    backgroundColor: '#23242C',
+    backgroundColor: '#09161f',
     borderRadius: 24,
     padding: 28,
     width: '90%',
@@ -103,12 +119,13 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 23,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 12,
+    marginTop: 1,
     textAlign: 'center',
   },
   input: {
     width: '100%',
-    backgroundColor: '#282931',
+    backgroundColor: '#081620ff',
     color: '#FFF',
     borderRadius: 12,
     padding: 15,
@@ -119,16 +136,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   button: {
-    backgroundColor: '#FFD600',
+    backgroundColor: '#2a6089',
     borderRadius: 32,
     width: '80%',
     paddingVertical: 14,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#23242C',
+    color: '#09161f',
     fontSize: 16,
     fontWeight: '700',
     textTransform: 'uppercase',
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    marginTop: 170,
+    marginBottom: 2,
   },
 });
