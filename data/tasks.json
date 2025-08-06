@@ -1,0 +1,74 @@
+[
+  {
+    "type": "dare",
+    "text": "Slide a mystery love note under the door of {{room}}.",
+    "difficulty": "easy",
+    "tags": []
+  },
+  {
+    "type": "dare",
+    "text": "Post an awkward selfie with the person living at {{room}} to your story with no caption.",
+    "difficulty": "medium",
+    "tags": []
+  },
+  {
+    "type": "dare",
+    "text": "Sing your favorite song outside {{room}}.",
+    "difficulty": "hard",
+    "tags": []
+  },
+  {
+    "type": "dare",
+    "text": "Go to {{room}} and make a TikTok dance video with the other person.",
+    "difficulty": "hard",
+    "tags": []
+  },
+  {
+    "type": "dare",
+    "text": "Give a tour of room {{room}} to its owner.",
+    "difficulty": "medium",
+    "tags": []
+  },
+  {
+    "type": "dare",
+    "text": "Ask if you can sleepover at {{room}}.",
+    "difficulty": "medium",
+    "tags": []
+  },
+  {
+    "type": "dare",
+    "text": "Pull up in the worst fit possible to dorm {{room}} and ask them to rate it.",
+    "difficulty": "hard",
+    "tags": []
+  },
+  {
+    "type": "dare",
+    "text": "Say a pickup line to the person at dorm {{room}}.",
+    "difficulty": "medium",
+    "tags": []
+  },
+  {
+    "type": "social",
+    "text": "Knock on the door of room {{room}} and give them a compliment.",
+    "difficulty": "",
+    "tags": []
+  },
+  {
+    "type": "social",
+    "text": "Challenge room {{room}} to a thumb war.",
+    "difficulty": "",
+    "tags": []
+  },
+  {
+    "type": "social",
+    "text": "Ask the person in {{room}} what their favorite song is.",
+    "difficulty": "",
+    "tags": []
+  },
+  {
+    "type": "social",
+    "text": "Offer a snack to someone in {{room}}.",
+    "difficulty": "",
+    "tags": []
+  }
+]

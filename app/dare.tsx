@@ -3,32 +3,15 @@ import { signOut } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import tasksData from '../data/tasks.json';
 import { auth, db } from '../firebase.js';
-
-const sampleDares = [
-  "Slide a mystery love note under the door of {{room}}.",
-  "Post an awkward selfie with the person living at {{room}} to your story with no caption.",
-  "Sing your favorite song outside {{room}}.",
-  "Go to {{room}} and make a TikTok dance video with the other person.",
-  "Give a tour of room {{room}} to its owner.",
-  "Ask if you can sleepover at {{room}}.",
-  "Pull up in the worst fit possible to dorm {{room}} and ask them to rate it.",
-  "Say a pickup line to the person at dorm {{room}}."
-];
-
-const sampleSocial = [
-  "Knock on the door of room {{room}} and give them a compliment.",
-  "Challenge room {{room}} to a thumb war.",
-  "Ask the person in {{room}} what their favorite song is.",
-  "Offer a snack to someone in {{room}}."
-];
 
 const socialTopics = [
   "What's your favorite late-night snack?",
   "What's a class you surprisingly enjoyed?",
   "Have you ever pulled an all-nighter?",
   "What's your weirdest dorm story?",
-  "Do you believe in ghosts in the dorm?",
+  "Do you believe in ghosts in the dorm?"
 ];
 
 const RED = "#f44336";
@@ -68,29 +51,40 @@ export default function DareScreen() {
 
   const generateChallenge = () => {
     if (!dormNumber) return;
+
+    // Pick a random dorm other than the current one
     const availableDorms = publicDorms.filter(d => d !== dormNumber);
     const targetRoom =
       availableDorms.length > 0
         ? availableDorms[Math.floor(Math.random() * availableDorms.length)]
         : dormNumber;
-    let selected: string;
-    if (challengeType === 'dare') {
-      selected = sampleDares[Math.floor(Math.random() * sampleDares.length)].replace('{{room}}', targetRoom);
-    } else {
-      const challenge = sampleSocial[Math.floor(Math.random() * sampleSocial.length)];
+
+    // Filter tasks by selected type
+    const filteredTasks = tasksData.filter(task => task.type === challengeType);
+    if (filteredTasks.length === 0) return;
+
+    const randomTask = filteredTasks[Math.floor(Math.random() * filteredTasks.length)];
+    let finalChallenge = randomTask.text.replace('{{room}}', targetRoom);
+
+    // Add bonus topic for social challenges
+    if (challengeType === 'social') {
       const topic = socialTopics[Math.floor(Math.random() * socialTopics.length)];
-      selected = `${challenge.replace('{{room}}', targetRoom)}\n\n🗣 Bonus topic: ${topic}`;
+      finalChallenge += `\n\n🗣 Bonus topic: ${topic}`;
     }
-    setChallenge(selected);
+
+    setChallenge(finalChallenge);
   };
+
   const handleLogout = async () => {
-  await signOut(auth);
-  router.replace('/login'); 
-  }
+    await signOut(auth);
+    router.replace('/login');
+  };
+
   return (
     <View style={styles.screen}>
       <View style={styles.card}>
         <Text style={styles.title}>Your Challenge</Text>
+
         <View style={styles.segmented}>
           <Pressable
             style={[styles.segmentBtn, challengeType === 'dare' && styles.selectedRedSegment]}
@@ -100,6 +94,7 @@ export default function DareScreen() {
               🎯 Dare
             </Text>
           </Pressable>
+
           <Pressable
             style={[styles.segmentBtn, challengeType === 'social' && styles.selectedBlueSegment]}
             onPress={() => setChallengeType('social')}
@@ -111,7 +106,7 @@ export default function DareScreen() {
         </View>
 
         <Pressable style={styles.buttonBlue} onPress={generateChallenge}>
-          <Text style={styles.buttonText}>{'Generate Challenge'}</Text>
+          <Text style={styles.buttonText}>Generate Challenge</Text>
         </Pressable>
 
         {challenge && (
@@ -122,9 +117,10 @@ export default function DareScreen() {
           </View>
         )}
       </View>
+
       <Pressable onPress={handleLogout} style={styles.logoutBtn}>
-  <Text style={styles.logoutText}>Log Out</Text>
-</Pressable>
+        <Text style={styles.logoutText}>Log Out</Text>
+      </Pressable>
     </View>
   );
 }
