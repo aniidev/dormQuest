@@ -1,13 +1,9 @@
-import { useLocalSearchParams } from 'expo-router';
-import { collection, getDocs } from 'firebase/firestore';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { signOut } from 'firebase/auth';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native';
-import { db } from '../firebase.js';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { auth, db } from '../firebase.js';
 
 const sampleDares = [
   "Slide a mystery love note under the door of {{room}}.",
@@ -40,7 +36,8 @@ const BLUE = "#1e88e5";
 const GREY_TEXT = "#8B95A1";
 
 export default function DareScreen() {
-  const { dorm } = useLocalSearchParams();
+  const router = useRouter();
+  const { dorm: dormParam } = useLocalSearchParams();
   const [challenge, setChallenge] = useState<string | null>(null);
   const [challengeType, setChallengeType] = useState<'dare' | 'social'>('dare');
   const [dormNumber, setDormNumber] = useState<string>('');
@@ -48,22 +45,26 @@ export default function DareScreen() {
 
   useEffect(() => {
     const fetchDorms = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'dorms'));
-        const dormList = snapshot.docs.map(doc => doc.data().dorm);
-        setPublicDorms(dormList);
-      } catch (error) {
-        console.error("Error fetching dorms:", error);
-      }
+      const snapshot = await getDocs(collection(db, 'dorms'));
+      const dormList = snapshot.docs.map(doc => doc.data().dorm);
+      setPublicDorms(dormList);
     };
     fetchDorms();
   }, []);
 
   useEffect(() => {
-    if (typeof dorm === 'string') {
-      setDormNumber(dorm.toUpperCase());
-    }
-  }, [dorm]);
+    const getDorm = async () => {
+      if (typeof dormParam === 'string') {
+        setDormNumber(dormParam.toUpperCase());
+      } else if (auth.currentUser) {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          setDormNumber(userDoc.data().dorm);
+        }
+      }
+    };
+    getDorm();
+  }, [dormParam]);
 
   const generateChallenge = () => {
     if (!dormNumber) return;
@@ -74,8 +75,7 @@ export default function DareScreen() {
         : dormNumber;
     let selected: string;
     if (challengeType === 'dare') {
-      const rand = sampleDares[Math.floor(Math.random() * sampleDares.length)];
-      selected = rand.replace('{{room}}', targetRoom);
+      selected = sampleDares[Math.floor(Math.random() * sampleDares.length)].replace('{{room}}', targetRoom);
     } else {
       const challenge = sampleSocial[Math.floor(Math.random() * sampleSocial.length)];
       const topic = socialTopics[Math.floor(Math.random() * socialTopics.length)];
@@ -83,56 +83,48 @@ export default function DareScreen() {
     }
     setChallenge(selected);
   };
-
+  const handleLogout = async () => {
+  await signOut(auth);
+  router.replace('/login'); 
+  }
   return (
     <View style={styles.screen}>
       <View style={styles.card}>
         <Text style={styles.title}>Your Challenge</Text>
         <View style={styles.segmented}>
           <Pressable
-            style={[
-              styles.segmentBtn,
-              challengeType === 'dare' && styles.selectedRedSegment,
-            ]}
+            style={[styles.segmentBtn, challengeType === 'dare' && styles.selectedRedSegment]}
             onPress={() => setChallengeType('dare')}
           >
-            <Text style={[
-              styles.segmentText,
-              challengeType === 'dare' ? styles.selectedSegmentTextRed : styles.unselectedSegmentText
-            ]}>🎯 Dare</Text>
+            <Text style={challengeType === 'dare' ? styles.selectedSegmentTextRed : styles.unselectedSegmentText}>
+              🎯 Dare
+            </Text>
           </Pressable>
           <Pressable
-            style={[
-              styles.segmentBtn,
-              challengeType === 'social' && styles.selectedBlueSegment,
-            ]}
+            style={[styles.segmentBtn, challengeType === 'social' && styles.selectedBlueSegment]}
             onPress={() => setChallengeType('social')}
           >
-            <Text style={[
-              styles.segmentText,
-              challengeType === 'social' ? styles.selectedSegmentTextBlue : styles.unselectedSegmentText
-            ]}>🗣️ Social</Text>
+            <Text style={challengeType === 'social' ? styles.selectedSegmentTextBlue : styles.unselectedSegmentText}>
+              🗣️ Social
+            </Text>
           </Pressable>
         </View>
 
-        <Pressable
-          style={styles.buttonBlue}
-          onPress={generateChallenge}
-        >
+        <Pressable style={styles.buttonBlue} onPress={generateChallenge}>
           <Text style={styles.buttonText}>{'Generate Challenge'}</Text>
         </Pressable>
 
         {challenge && (
           <View style={styles.challengeBox}>
-            <Text style={[
-              styles.challengeText,
-              challengeType === 'dare' ? styles.challengeTextRed : styles.challengeTextBlue
-            ]}>
+            <Text style={challengeType === 'dare' ? styles.challengeTextRed : styles.challengeTextBlue}>
               {challenge}
             </Text>
           </View>
         )}
       </View>
+      <Pressable onPress={handleLogout} style={styles.logoutBtn}>
+  <Text style={styles.logoutText}>Log Out</Text>
+</Pressable>
     </View>
   );
 }
@@ -259,4 +251,15 @@ const styles = StyleSheet.create({
   challengeTextBlue: {
     color: BLUE,
   },
+  logoutBtn: {
+  marginTop: 12,
+  backgroundColor: '#f44336',
+  paddingVertical: 8,
+  paddingHorizontal: 16,
+  borderRadius: 8,
+},
+logoutText: {
+  color: '#FFF',
+  fontWeight: '600',
+}
 });

@@ -1,55 +1,85 @@
 import { useRouter } from 'expo-router';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { db } from '../firebase.js';
+import { auth, db } from '../firebase.js';
 
 export default function HomeScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [dorm, setDorm] = useState('');
   const router = useRouter();
 
-  const handleContinue = async () => {
+  const handleSignup = async () => {
     const dormTrimmed = dorm.trim().toUpperCase();
-    if (!dormTrimmed) return;
+    if (!email || !password || !dormTrimmed) {
+      Alert.alert('Missing info', 'Please fill in all fields.');
+      return;
+    }
 
     try {
-      const dormRef = doc(db, 'dorms', dormTrimmed);
-      const dormSnap = await getDoc(dormRef);
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const uid = userCredential.user.uid;
 
-      if (dormSnap.exists()) {
-        Alert.alert('Dorm already exists', 'This dorm is already registered.');
-        return;
-      }
-
-      await setDoc(dormRef, {
+      // Save dorm in users collection
+      await setDoc(doc(db, 'users', uid), {
         dorm: dormTrimmed,
-        timestamp: Date.now(),
+        timestamp: Date.now()
+      });
+
+      // Also store dorm in dorms collection so dare.tsx works
+      await setDoc(doc(db, 'dorms', dormTrimmed), {
+        dorm: dormTrimmed,
+        timestamp: Date.now()
       });
 
       router.push({ pathname: '/dare', params: { dorm: dormTrimmed } });
-    } catch (error) {
-      console.error("Error checking or saving dorm to Firestore:", error);
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
     }
   };
 
   return (
     <View style={styles.screen}>
       <View style={styles.card}>
-        <Text style={styles.title}>Your Dorm Room</Text>
-        <Text style={styles.subtitle}>Enter your dorm number to join</Text>
+        <Text style={styles.title}>Register for DormDare</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g. A-103"
+          placeholder="Email"
+          placeholderTextColor="#6B6B6B"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="#6B6B6B"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Dorm Number (e.g. A-103)"
           placeholderTextColor="#6B6B6B"
           value={dorm}
           onChangeText={setDorm}
           autoCapitalize="characters"
         />
-        <Pressable style={styles.button} onPress={handleContinue}>
+        <Pressable style={styles.button} onPress={handleSignup}>
           <Text style={styles.buttonText}>Continue</Text>
         </Pressable>
       </View>
+      <Pressable onPress={() => router.push('/login')}>
+  <Text style={{ color: '#FFD600', marginTop: 12 }}>
+    Already have an account? Log in
+  </Text>
+</Pressable>
     </View>
   );
 }
@@ -68,25 +98,13 @@ const styles = StyleSheet.create({
     width: '90%',
     maxWidth: 360,
     alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 16,
   },
   title: {
     color: '#FFF',
     fontSize: 23,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 20,
     textAlign: 'center',
-  },
-  subtitle: {
-    color: '#BFC2CD',
-    fontSize: 15,
-    marginBottom: 24,
-    textAlign: 'center',
-    fontWeight: '500'
   },
   input: {
     width: '100%',
@@ -94,13 +112,11 @@ const styles = StyleSheet.create({
     color: '#FFF',
     borderRadius: 12,
     padding: 15,
-    marginBottom: 26,
-    fontSize: 18,
+    marginBottom: 16,
+    fontSize: 16,
     borderWidth: 1,
     borderColor: '#35363B',
     fontWeight: '600',
-    letterSpacing: 1,
-    textAlign: 'center'
   },
   button: {
     backgroundColor: '#FFD600',
@@ -108,18 +124,11 @@ const styles = StyleSheet.create({
     width: '80%',
     paddingVertical: 14,
     alignItems: 'center',
-    shadowColor: "#FFD600",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    marginTop: 10,
   },
   buttonText: {
     color: '#23242C',
     fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 1,
     textTransform: 'uppercase',
   },
 });
