@@ -3,72 +3,78 @@
     "type": "dare",
     "text": "Slide a mystery love note under the door of {{room}}.",
     "difficulty": "easy",
-    "tags": []
+    "tags": ["night", "quiet", "romantic"]
   },
   {
     "type": "dare",
     "text": "Post an awkward selfie with the person living at {{room}} to your story with no caption.",
     "difficulty": "medium",
-    "tags": []
+    "tags": ["day", "awkward", "funny"]
   },
   {
     "type": "dare",
     "text": "Sing your favorite song outside {{room}}.",
     "difficulty": "hard",
-    "tags": []
+    "tags": ["day", "loud", "confident"]
   },
   {
     "type": "dare",
     "text": "Go to {{room}} and make a TikTok dance video with the other person.",
     "difficulty": "hard",
-    "tags": []
+    "tags": ["day", "funny", "active"]
   },
   {
     "type": "dare",
     "text": "Give a tour of room {{room}} to its owner.",
     "difficulty": "medium",
-    "tags": []
+    "tags": ["day", "awkward", "creative"]
   },
   {
     "type": "dare",
     "text": "Ask if you can sleepover at {{room}}.",
     "difficulty": "medium",
-    "tags": []
+    "tags": ["night", "funny", "awkward"]
   },
   {
     "type": "dare",
     "text": "Pull up in the worst fit possible to dorm {{room}} and ask them to rate it.",
     "difficulty": "hard",
-    "tags": []
+    "tags": ["day", "funny", "fashion"]
   },
   {
     "type": "dare",
     "text": "Say a pickup line to the person at dorm {{room}}.",
     "difficulty": "medium",
-    "tags": []
+    "tags": ["night", "romantic", "funny"]
   },
   {
     "type": "social",
     "text": "Knock on the door of room {{room}} and give them a compliment.",
     "difficulty": "",
-    "tags": []
+    "tags": ["day", "positive", "friendly"]
   },
   {
     "type": "social",
     "text": "Challenge room {{room}} to a thumb war.",
     "difficulty": "",
-    "tags": []
+    "tags": ["day", "funny", "interactive"]
   },
   {
     "type": "social",
     "text": "Ask the person in {{room}} what their favorite song is.",
     "difficulty": "",
-    "tags": []
+    "tags": ["day", "friendly", "chill"]
   },
   {
     "type": "social",
     "text": "Offer a snack to someone in {{room}}.",
     "difficulty": "",
-    "tags": []
+    "tags": ["day", "friendly", "generous"]
+  },
+  {
+    "type": "dare",
+    "text": "Bring an empty plate to {{room}} and ask what's for dinner.",
+    "difficulty": "medium",
+    "tags": ["night", "funny", "bold"]
   }
 ]

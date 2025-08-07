@@ -92,7 +92,7 @@ export default function HomeScreen() {
       </View>
 
       <Pressable onPress={() => router.push('/login')}>
-        <Text style={{ color: '#2a6089', marginTop: 12 }}>
+        <Text style={{ color: '#2a6089', marginTop: 0 }}>
           Already have an account? Log in
         </Text>
       </Pressable>
@@ -141,9 +141,10 @@ const styles = StyleSheet.create({
     width: '80%',
     paddingVertical: 14,
     alignItems: 'center',
+    marginBottom: 0
   },
   buttonText: {
-    color: '#09161f',
+    color: '#FFF',
     fontSize: 16,
     fontWeight: '700',
     textTransform: 'uppercase',

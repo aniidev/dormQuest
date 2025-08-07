@@ -23,6 +23,7 @@ export default function DareScreen() {
   const { dorm: dormParam } = useLocalSearchParams();
   const [challenge, setChallenge] = useState<string | null>(null);
   const [challengeType, setChallengeType] = useState<'dare' | 'social'>('dare');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [dormNumber, setDormNumber] = useState<string>('');
   const [publicDorms, setPublicDorms] = useState<string[]>([]);
 
@@ -52,16 +53,22 @@ export default function DareScreen() {
   const generateChallenge = () => {
     if (!dormNumber) return;
 
-    // Pick a random dorm other than the current one
     const availableDorms = publicDorms.filter(d => d !== dormNumber);
     const targetRoom =
       availableDorms.length > 0
         ? availableDorms[Math.floor(Math.random() * availableDorms.length)]
         : dormNumber;
 
-    // Filter tasks by selected type
-    const filteredTasks = tasksData.filter(task => task.type === challengeType);
-    if (filteredTasks.length === 0) return;
+    
+    const filteredTasks = tasksData.filter(task => {
+    if (task.type !== challengeType) return false;
+    if (selectedTags.length === 0) return true;
+      return selectedTags.every(tag => task.tags.includes(tag));
+    });
+
+    if (filteredTasks.length === 0) {
+      return setChallenge("No tasks available"); 
+    }
 
     const randomTask = filteredTasks[Math.floor(Math.random() * filteredTasks.length)];
     let finalChallenge = randomTask.text.replace('{{room}}', targetRoom);
@@ -104,9 +111,34 @@ export default function DareScreen() {
             </Text>
           </Pressable>
         </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16, gap: 8, justifyContent: 'center' }}>
+  {['day', 'night', 'funny', 'awkward', 'romantic', 'loud', 'quiet'].map(tag => {
+    const isSelected = selectedTags.includes(tag);
+    return (
+      <Pressable
+        key={tag}
+        onPress={() => {
+          setSelectedTags(prev =>
+            isSelected ? prev.filter(t => t !== tag) : [...prev, tag]
+          );
+        }}
+        style={{
+          paddingHorizontal: 12,
+          paddingVertical: 6,
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: '#2a6089',
+          backgroundColor: isSelected ? '#2a6089' : 'transparent',
+        }}
+      >
+        <Text style={{ color: isSelected ? '#fff' : '#2a6089', fontSize: 13 }}>{tag}</Text>
+      </Pressable>
+    );
+  })}
+</View>
 
         <Pressable style={styles.buttonBlue} onPress={generateChallenge}>
-          <Text style={styles.buttonText}>Generate Challenge</Text>
+          <Text style={styles.buttonText}>Get Mission</Text>
         </Pressable>
 
         {challenge && (
@@ -238,7 +270,7 @@ const styles = StyleSheet.create({
     borderColor: '#35363B',
   },
   challengeText: {
-    fontSize: 18,
+    fontSize: 65,
     lineHeight: 27,
     fontWeight: '600',
     textAlign: 'center',
