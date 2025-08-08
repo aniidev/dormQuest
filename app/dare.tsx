@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import tasksData from '../data/tasks.json';
@@ -21,21 +21,26 @@ const GREY_TEXT = "#8B95A1";
 export default function DareScreen() {
   const router = useRouter();
   const { dorm: dormParam } = useLocalSearchParams();
+
   const [challenge, setChallenge] = useState<string | null>(null);
   const [challengeType, setChallengeType] = useState<'dare' | 'social'>('dare');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [dormNumber, setDormNumber] = useState<string>('');
   const [publicDorms, setPublicDorms] = useState<string[]>([]);
 
+  const [activeChallenge, setActiveChallenge] = useState<any>(null);
+  const [timeLeft, setTimeLeft] = useState<string>("");
+
+  // Fetch dorm list
   useEffect(() => {
     const fetchDorms = async () => {
       const snapshot = await getDocs(collection(db, 'dorms'));
-      const dormList = snapshot.docs.map(doc => doc.data().dorm);
-      setPublicDorms(dormList);
+      setPublicDorms(snapshot.docs.map(doc => doc.data().dorm));
     };
     fetchDorms();
   }, []);
 
+  // Get dorm from params or user profile
   useEffect(() => {
     const getDorm = async () => {
       if (typeof dormParam === 'string') {
@@ -50,36 +55,85 @@ export default function DareScreen() {
     getDorm();
   }, [dormParam]);
 
+  // Listen for active challenge in Firestore
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const unsub = onSnapshot(doc(db, 'users', auth.currentUser.uid, 'meta', 'activeChallenge'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setActiveChallenge(data);
+        setChallenge(data.challengeText);
+      } else {
+        setActiveChallenge(null);
+        setChallenge(null);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!activeChallenge?.expiresAt) return;
+    const interval = setInterval(() => {
+      const diff = activeChallenge.expiresAt.toDate().getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft("Expired");
+        clearInterval(interval);
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff / (1000 * 60)) % 60);
+        const secs = Math.floor((diff / 1000) % 60);
+        setTimeLeft(`${hours}h ${mins}m ${secs}s`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeChallenge]);
+
+  // Generate challenge
   const generateChallenge = () => {
     if (!dormNumber) return;
-
     const availableDorms = publicDorms.filter(d => d !== dormNumber);
-    const targetRoom =
-      availableDorms.length > 0
-        ? availableDorms[Math.floor(Math.random() * availableDorms.length)]
-        : dormNumber;
+    const targetRoom = availableDorms.length > 0
+      ? availableDorms[Math.floor(Math.random() * availableDorms.length)]
+      : dormNumber;
 
-    
     const filteredTasks = tasksData.filter(task => {
-    if (task.type !== challengeType) return false;
-    if (selectedTags.length === 0) return true;
+      if (task.type !== challengeType) return false;
+      if (selectedTags.length === 0) return true;
       return selectedTags.every(tag => task.tags.includes(tag));
     });
 
     if (filteredTasks.length === 0) {
-      return setChallenge("No tasks available"); 
+      return setChallenge("No tasks available");
     }
 
     const randomTask = filteredTasks[Math.floor(Math.random() * filteredTasks.length)];
     let finalChallenge = randomTask.text.replace('{{room}}', targetRoom);
 
-    // Add bonus topic for social challenges
     if (challengeType === 'social') {
       const topic = socialTopics[Math.floor(Math.random() * socialTopics.length)];
       finalChallenge += `\n\n🗣 Bonus topic: ${topic}`;
     }
 
     setChallenge(finalChallenge);
+  };
+
+  // Accept challenge → save to Firestore with 24h expiration
+  const acceptChallenge = async () => {
+    if (!auth.currentUser || !challenge) return;
+    const expiresAt = Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
+    await setDoc(doc(db, 'users', auth.currentUser.uid, 'meta', 'activeChallenge'), {
+      challengeText: challenge,
+      startedAt: serverTimestamp(),
+      expiresAt,
+      status: 'active'
+    });
+  };
+
+  // Complete challenge → remove from Firestore
+  const completeChallenge = async () => {
+    if (!auth.currentUser) return;
+    await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'meta', 'activeChallenge'));
   };
 
   const handleLogout = async () => {
@@ -92,61 +146,68 @@ export default function DareScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>Tasks</Text>
 
+        {/* Type toggle */}
         <View style={styles.segmented}>
-          <Pressable
-            style={[styles.segmentBtn, challengeType === 'dare' && styles.selectedRedSegment]}
-            onPress={() => setChallengeType('dare')}
-          >
-            <Text style={challengeType === 'dare' ? styles.selectedSegmentTextRed : styles.unselectedSegmentText}>
-              🎯 Dare
-            </Text>
+          <Pressable style={[styles.segmentBtn, challengeType === 'dare' && styles.selectedRedSegment]} onPress={() => setChallengeType('dare')}>
+            <Text style={challengeType === 'dare' ? styles.selectedSegmentTextRed : styles.unselectedSegmentText}>🎯 Dare</Text>
           </Pressable>
-
-          <Pressable
-            style={[styles.segmentBtn, challengeType === 'social' && styles.selectedBlueSegment]}
-            onPress={() => setChallengeType('social')}
-          >
-            <Text style={challengeType === 'social' ? styles.selectedSegmentTextBlue : styles.unselectedSegmentText}>
-              🗣️ Social
-            </Text>
+          <Pressable style={[styles.segmentBtn, challengeType === 'social' && styles.selectedBlueSegment]} onPress={() => setChallengeType('social')}>
+            <Text style={challengeType === 'social' ? styles.selectedSegmentTextBlue : styles.unselectedSegmentText}>🗣️ Social</Text>
           </Pressable>
         </View>
+
+        {/* Tag filters */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16, gap: 8, justifyContent: 'center' }}>
-  {['day', 'night', 'funny', 'awkward', 'romantic', 'loud', 'quiet'].map(tag => {
-    const isSelected = selectedTags.includes(tag);
-    return (
-      <Pressable
-        key={tag}
-        onPress={() => {
-          setSelectedTags(prev =>
-            isSelected ? prev.filter(t => t !== tag) : [...prev, tag]
-          );
-        }}
-        style={{
-          paddingHorizontal: 12,
-          paddingVertical: 6,
-          borderRadius: 20,
-          borderWidth: 1,
-          borderColor: '#2a6089',
-          backgroundColor: isSelected ? '#2a6089' : 'transparent',
-        }}
-      >
-        <Text style={{ color: isSelected ? '#fff' : '#2a6089', fontSize: 13 }}>{tag}</Text>
-      </Pressable>
-    );
-  })}
-</View>
+          {['day', 'night', 'funny', 'awkward', 'romantic', 'loud', 'quiet'].map(tag => {
+            const isSelected = selectedTags.includes(tag);
+            return (
+              <Pressable
+                key={tag}
+                onPress={() => setSelectedTags(prev => isSelected ? prev.filter(t => t !== tag) : [...prev, tag])}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: '#2a6089',
+                  backgroundColor: isSelected ? '#2a6089' : 'transparent',
+                }}
+              >
+                <Text style={{ color: isSelected ? '#fff' : '#2a6089', fontSize: 13 }}>{tag}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-        <Pressable style={styles.buttonBlue} onPress={generateChallenge}>
-          <Text style={styles.buttonText}>Get Mission</Text>
-        </Pressable>
+        {/* Challenge */}
+        {!activeChallenge && (
+          <>
+            <Pressable style={styles.buttonBlue} onPress={generateChallenge}>
+              <Text style={styles.buttonText}>Get Mission</Text>
+            </Pressable>
+            {challenge && (
+              <>
+                <View style={styles.challengeBox}>
+                  <Text style={challengeType === 'dare' ? styles.challengeTextRed : styles.challengeTextBlue}>{challenge}</Text>
+                </View>
+                <Pressable style={[styles.buttonBlue, { marginTop: 10 }]} onPress={acceptChallenge}>
+                  <Text style={styles.buttonText}>Accept Challenge</Text>
+                </Pressable>
+              </>
+            )}
+          </>
+        )}
 
-        {challenge && (
-          <View style={styles.challengeBox}>
-            <Text style={challengeType === 'dare' ? styles.challengeTextRed : styles.challengeTextBlue}>
-              {challenge}
-            </Text>
-          </View>
+        {activeChallenge && (
+          <>
+            <View style={styles.challengeBox}>
+              <Text style={styles.challengeTextRed}>{activeChallenge.challengeText}</Text>
+              <Text style={{ color: '#ccc', marginTop: 8 }}>Time left: {timeLeft}</Text>
+            </View>
+            <Pressable style={[styles.buttonBlue, { marginTop: 10 }]} onPress={completeChallenge}>
+              <Text style={styles.buttonText}>Mark as Complete</Text>
+            </Pressable>
+          </>
         )}
       </View>
 
@@ -206,7 +267,7 @@ const styles = StyleSheet.create({
   },
   selectedRedSegment: {
     backgroundColor: '#df2b2bff',
-    shadowColor: '#2a6089',
+    shadowColor: '#df2b2bff',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.09,
     shadowRadius: 6,
@@ -214,14 +275,14 @@ const styles = StyleSheet.create({
   },
   selectedBlueSegment: {
     backgroundColor: '#ddc433ff',
-    shadowColor: '#2a6089',
+    shadowColor: '#ddc433ff',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.09,
     shadowRadius: 6,
     elevation: 4,
   },
   segmentText: {
-    fontSize: 15,
+    fontSize: 25,
     fontWeight: '600',
     letterSpacing: 0.8,
   },
@@ -277,10 +338,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   challengeTextRed: {
-    color: '#2a6089',
+    color: '#ffffffff',
+    fontSize: 17,
+    alignItems: 'center'
   },
   challengeTextBlue: {
-    color: '#2a6089',
+    color: '#ffffffff',
+    fontSize: 17
   },
   logoutBtn: {
     marginTop: 12,
