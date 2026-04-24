@@ -1,136 +1,138 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
-import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+} from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import tasksData from '../data/tasks.json';
 import { auth, db } from '../firebase.js';
 
-const socialTopics = [
+const SOCIAL_TOPICS = [
   "What's your favorite late-night snack?",
   "What's a class you surprisingly enjoyed?",
   "Have you ever pulled an all-nighter?",
   "What's your weirdest dorm story?",
-  "Do you believe in ghosts in the dorm?"
+  "Do you believe in ghosts in the dorm?",
 ];
 
-const RED = "#f44336";
-const BLUE = "#1e88e5";
-const GREY_TEXT = "#8B95A1";
+const TAGS = ['day', 'night', 'funny', 'awkward', 'romantic', 'loud', 'quiet'];
+
+// Accent colors per mode
+const ACCENT = { dare: '#d64545', social: '#c49a00' } as const;
 
 export default function DareScreen() {
   const router = useRouter();
   const { dorm: dormParam } = useLocalSearchParams();
 
-  const [challenge, setChallenge] = useState<string | null>(null);
   const [challengeType, setChallengeType] = useState<'dare' | 'social'>('dare');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [dormNumber, setDormNumber] = useState<string>('');
+  const [dormNumber, setDormNumber] = useState('');
   const [publicDorms, setPublicDorms] = useState<string[]>([]);
-
+  const [pendingChallenge, setPendingChallenge] = useState<string | null>(null);
   const [activeChallenge, setActiveChallenge] = useState<any>(null);
-  const [timeLeft, setTimeLeft] = useState<string>("");
+  const [timeLeft, setTimeLeft] = useState('');
 
-  // Fetch dorm list
+  // Fetch participating dorms
   useEffect(() => {
-    const fetchDorms = async () => {
-      const snapshot = await getDocs(collection(db, 'dorms'));
-      setPublicDorms(snapshot.docs.map(doc => doc.data().dorm));
-    };
-    fetchDorms();
+    getDocs(collection(db, 'dorms')).then(snap =>
+      setPublicDorms(snap.docs.map(d => d.data().dorm))
+    );
   }, []);
 
-  // Get dorm from params or user profile
+  // Resolve dorm number
   useEffect(() => {
-    const getDorm = async () => {
-      if (typeof dormParam === 'string') {
-        setDormNumber(dormParam.toUpperCase());
-      } else if (auth.currentUser) {
-        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-        if (userDoc.exists()) {
-          setDormNumber(userDoc.data().dorm);
-        }
-      }
-    };
-    getDorm();
+    if (typeof dormParam === 'string') {
+      setDormNumber(dormParam.toUpperCase());
+    } else if (auth.currentUser) {
+      getDoc(doc(db, 'users', auth.currentUser.uid)).then(snap => {
+        if (snap.exists()) setDormNumber(snap.data().dorm);
+      });
+    }
   }, [dormParam]);
 
-  // Listen for active challenge in Firestore
+  // Listen for active challenge
   useEffect(() => {
     if (!auth.currentUser) return;
-    const unsub = onSnapshot(doc(db, 'users', auth.currentUser.uid, 'meta', 'activeChallenge'), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setActiveChallenge(data);
-        setChallenge(data.challengeText);
-      } else {
-        setActiveChallenge(null);
-        setChallenge(null);
+    return onSnapshot(
+      doc(db, 'users', auth.currentUser.uid, 'meta', 'activeChallenge'),
+      snap => {
+        if (snap.exists()) {
+          setActiveChallenge(snap.data());
+          setPendingChallenge(null);
+        } else {
+          setActiveChallenge(null);
+        }
       }
-    });
-    return () => unsub();
+    );
   }, []);
 
   // Countdown timer
   useEffect(() => {
     if (!activeChallenge?.expiresAt) return;
-    const interval = setInterval(() => {
+    const tick = () => {
       const diff = activeChallenge.expiresAt.toDate().getTime() - Date.now();
-      if (diff <= 0) {
-        setTimeLeft("Expired");
-        clearInterval(interval);
-      } else {
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const mins = Math.floor((diff / (1000 * 60)) % 60);
-        const secs = Math.floor((diff / 1000) % 60);
-        setTimeLeft(`${hours}h ${mins}m ${secs}s`);
-      }
-    }, 1000);
-    return () => clearInterval(interval);
+      if (diff <= 0) return setTimeLeft('00:00:00');
+      const h = String(Math.floor(diff / 3_600_000)).padStart(2, '0');
+      const m = String(Math.floor((diff % 3_600_000) / 60_000)).padStart(2, '0');
+      const s = String(Math.floor((diff % 60_000) / 1000)).padStart(2, '0');
+      setTimeLeft(`${h}:${m}:${s}`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, [activeChallenge]);
 
-  // Generate challenge
-  const generateChallenge = () => {
+  const rollMission = () => {
     if (!dormNumber) return;
-    const availableDorms = publicDorms.filter(d => d !== dormNumber);
-    const targetRoom = availableDorms.length > 0
-      ? availableDorms[Math.floor(Math.random() * availableDorms.length)]
-      : dormNumber;
+    const others = publicDorms.filter(d => d !== dormNumber);
+    const target = others.length > 0 ? others[Math.floor(Math.random() * others.length)] : dormNumber;
 
-    const filteredTasks = tasksData.filter(task => {
-      if (task.type !== challengeType) return false;
+    const pool = tasksData.filter(t => {
+      if (t.type !== challengeType) return false;
       if (selectedTags.length === 0) return true;
-      return selectedTags.every(tag => task.tags.includes(tag));
+      return selectedTags.every(tag => t.tags.includes(tag));
     });
 
-    if (filteredTasks.length === 0) {
-      return setChallenge("No tasks available");
+    if (pool.length === 0) {
+      setPendingChallenge('No tasks match those filters. Try removing some tags.');
+      return;
     }
 
-    const randomTask = filteredTasks[Math.floor(Math.random() * filteredTasks.length)];
-    let finalChallenge = randomTask.text.replace('{{room}}', targetRoom);
-
+    const task = pool[Math.floor(Math.random() * pool.length)];
+    let text = task.text.replace('{{room}}', target);
     if (challengeType === 'social') {
-      const topic = socialTopics[Math.floor(Math.random() * socialTopics.length)];
-      finalChallenge += `\n\n🗣 Bonus topic: ${topic}`;
+      text += `\n\nBonus: ${SOCIAL_TOPICS[Math.floor(Math.random() * SOCIAL_TOPICS.length)]}`;
     }
-
-    setChallenge(finalChallenge);
+    setPendingChallenge(text);
   };
 
-  // Accept challenge → save to Firestore with 24h expiration
   const acceptChallenge = async () => {
-    if (!auth.currentUser || !challenge) return;
-    const expiresAt = Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000);
+    if (!auth.currentUser || !pendingChallenge) return;
     await setDoc(doc(db, 'users', auth.currentUser.uid, 'meta', 'activeChallenge'), {
-      challengeText: challenge,
+      challengeText: pendingChallenge,
+      type: challengeType,
       startedAt: serverTimestamp(),
-      expiresAt,
-      status: 'active'
+      expiresAt: Timestamp.fromMillis(Date.now() + 86_400_000),
+      status: 'active',
     });
   };
 
-  // Complete challenge → remove from Firestore
   const completeChallenge = async () => {
     if (!auth.currentUser) return;
     await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'meta', 'activeChallenge'));
@@ -141,220 +143,354 @@ export default function DareScreen() {
     router.replace('/login');
   };
 
-  return (
-    <View style={styles.screen}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Tasks</Text>
+  const toggleTag = (tag: string) =>
+    setSelectedTags(p => p.includes(tag) ? p.filter(t => t !== tag) : [...p, tag]);
 
-        {/* Type toggle */}
-        <View style={styles.segmented}>
-          <Pressable style={[styles.segmentBtn, challengeType === 'dare' && styles.selectedRedSegment]} onPress={() => setChallengeType('dare')}>
-            <Text style={challengeType === 'dare' ? styles.selectedSegmentTextRed : styles.unselectedSegmentText}>🎯 Dare</Text>
-          </Pressable>
-          <Pressable style={[styles.segmentBtn, challengeType === 'social' && styles.selectedBlueSegment]} onPress={() => setChallengeType('social')}>
-            <Text style={challengeType === 'social' ? styles.selectedSegmentTextBlue : styles.unselectedSegmentText}>🗣️ Social</Text>
+  const accent = ACCENT[challengeType];
+  const hasActive = !!activeChallenge;
+  const hasPending = !!pendingChallenge && !hasActive;
+
+  return (
+    <SafeAreaView style={s.safe}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+
+        {/* ── Header ── */}
+        <View style={s.header}>
+          <View>
+            <Text style={s.headerLabel}>YOUR ROOM</Text>
+            <Text style={s.headerRoom}>{dormNumber || '—'}</Text>
+          </View>
+          <Pressable onPress={handleLogout} style={({ pressed }) => [s.logoutBtn, pressed && s.logoutPressed]}>
+            <Text style={s.logoutText}>Sign out</Text>
           </Pressable>
         </View>
 
-        {/* Tag filters */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16, gap: 8, justifyContent: 'center' }}>
-          {['day', 'night', 'funny', 'awkward', 'romantic', 'loud', 'quiet'].map(tag => {
-            const isSelected = selectedTags.includes(tag);
+        {/* ── Page title ── */}
+        <View style={s.titleRow}>
+          <Text style={s.pageTitle}>Missions</Text>
+          {hasActive && (
+            <View style={s.activePill}>
+              <View style={s.activeDot} />
+              <Text style={s.activePillText}>Active</Text>
+            </View>
+          )}
+        </View>
+
+        {/* ── Type switcher ── */}
+        <View style={s.switcher}>
+          {(['dare', 'social'] as const).map(type => {
+            const active = challengeType === type;
+            const col = ACCENT[type];
             return (
               <Pressable
-                key={tag}
-                onPress={() => setSelectedTags(prev => isSelected ? prev.filter(t => t !== tag) : [...prev, tag])}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 20,
-                  borderWidth: 1,
-                  borderColor: '#2a6089',
-                  backgroundColor: isSelected ? '#2a6089' : 'transparent',
-                }}
+                key={type}
+                style={[s.switchBtn, active && { backgroundColor: col + '22', borderColor: col }]}
+                onPress={() => { setChallengeType(type); setPendingChallenge(null); }}
               >
-                <Text style={{ color: isSelected ? '#fff' : '#2a6089', fontSize: 13 }}>{tag}</Text>
+                <Text style={s.switchIcon}>{type === 'dare' ? '🎯' : '🗣️'}</Text>
+                <Text style={[s.switchLabel, active && { color: col }]}>
+                  {type === 'dare' ? 'Dare' : 'Social'}
+                </Text>
               </Pressable>
             );
           })}
         </View>
 
-        {/* Challenge */}
-        {!activeChallenge && (
-          <>
-            <Pressable style={styles.buttonBlue} onPress={generateChallenge}>
-              <Text style={styles.buttonText}>Get Mission</Text>
-            </Pressable>
-            {challenge && (
-              <>
-                <View style={styles.challengeBox}>
-                  <Text style={challengeType === 'dare' ? styles.challengeTextRed : styles.challengeTextBlue}>{challenge}</Text>
-                </View>
-                <Pressable style={[styles.buttonBlue, { marginTop: 10 }]} onPress={acceptChallenge}>
-                  <Text style={styles.buttonText}>Accept Challenge</Text>
-                </Pressable>
-              </>
-            )}
-          </>
+        {/* ── Tag filters (hidden when active challenge) ── */}
+        {!hasActive && (
+          <View style={s.filtersSection}>
+            <Text style={s.sectionMeta}>FILTER TAGS</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tagsRow}>
+              {TAGS.map(tag => {
+                const on = selectedTags.includes(tag);
+                return (
+                  <Pressable
+                    key={tag}
+                    onPress={() => toggleTag(tag)}
+                    style={[s.tag, on && { backgroundColor: accent + '25', borderColor: accent }]}
+                  >
+                    <Text style={[s.tagText, on && { color: accent }]}>{tag}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
         )}
 
-        {activeChallenge && (
-          <>
-            <View style={styles.challengeBox}>
-              <Text style={styles.challengeTextRed}>{activeChallenge.challengeText}</Text>
-              <Text style={{ color: '#ccc', marginTop: 8 }}>Time left: {timeLeft}</Text>
+        {/* ── Challenge card ── */}
+        <View style={[s.missionCard, { borderColor: accent + '30' }]}>
+          {!hasActive && !hasPending && (
+            <View style={s.emptyState}>
+              <Text style={s.emptyIcon}>🕵️</Text>
+              <Text style={s.emptyTitle}>No mission yet</Text>
+              <Text style={s.emptyBody}>Roll a mission below to get your next challenge.</Text>
             </View>
-            <Pressable style={[styles.buttonBlue, { marginTop: 10 }]} onPress={completeChallenge}>
-              <Text style={styles.buttonText}>Mark as Complete</Text>
-            </Pressable>
-          </>
-        )}
-      </View>
+          )}
 
-      <Pressable onPress={handleLogout} style={styles.logoutBtn}>
-        <Text style={styles.logoutText}>Log Out</Text>
-      </Pressable>
-    </View>
+          {hasPending && (
+            <>
+              <Text style={s.cardMeta}>{challengeType === 'dare' ? 'DARE' : 'SOCIAL CHALLENGE'}</Text>
+              <Text style={s.missionText}>{pendingChallenge}</Text>
+            </>
+          )}
+
+          {hasActive && (
+            <>
+              <Text style={s.cardMeta}>ACTIVE · {activeChallenge.type?.toUpperCase() ?? 'MISSION'}</Text>
+              <Text style={s.missionText}>{activeChallenge.challengeText}</Text>
+
+              {/* Timer */}
+              <View style={s.timerRow}>
+                <View style={s.timerDivider} />
+                <View style={s.timerInner}>
+                  <Text style={s.timerLabel}>TIME LEFT</Text>
+                  <Text style={s.timerValue}>{timeLeft || '—'}</Text>
+                </View>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* ── Actions ── */}
+        {!hasActive && (
+          <View style={s.actions}>
+            <Pressable
+              style={({ pressed }) => [s.primaryBtn, { backgroundColor: accent }, pressed && s.primaryBtnPressed]}
+              onPress={rollMission}
+            >
+              <Text style={s.primaryBtnText}>{hasPending ? 'Roll Again' : 'Roll Mission'}</Text>
+            </Pressable>
+
+            {hasPending && (
+              <Pressable
+                style={({ pressed }) => [s.secondaryBtn, pressed && s.secondaryBtnPressed]}
+                onPress={acceptChallenge}
+              >
+                <Text style={s.secondaryBtnText}>Accept Challenge</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
+        {hasActive && (
+          <View style={s.actions}>
+            <Pressable
+              style={({ pressed }) => [s.completeBtn, pressed && s.completeBtnPressed]}
+              onPress={completeChallenge}
+            >
+              <Text style={s.completeBtnText}>Mark Complete</Text>
+            </Pressable>
+          </View>
+        )}
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#09161f',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  card: {
-    backgroundColor: '#09161f',
-    borderRadius: 24,
-    paddingVertical: 30,
-    paddingHorizontal: 24,
-    width: '92%',
-    maxWidth: 400,
-    alignItems: 'center',
-    marginTop: 18,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius: 22,
-    elevation: 16,
-  },
-  title: {
-    color: '#FFF',
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    letterSpacing: 0.4,
-    textAlign: 'center',
-  },
-  segmented: {
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#09161f' },
+  scroll: { flexGrow: 1, paddingHorizontal: 22, paddingBottom: 48 },
+
+  /* Header */
+  header: {
     flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'center',
-    marginBottom: 18,
-    gap: 10,
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingTop: 20,
+    paddingBottom: 28,
   },
-  segmentBtn: {
-    flex: 1,
-    borderRadius: 14,
-    backgroundColor: '#081620ff',
-    paddingVertical: 11,
-    alignItems: 'center',
-    marginHorizontal: 2,
-    borderWidth: 1,
-    borderColor: '#35363B',
-  },
-  selectedRedSegment: {
-    backgroundColor: '#df2b2bff',
-    shadowColor: '#df2b2bff',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  selectedBlueSegment: {
-    backgroundColor: '#ddc433ff',
-    shadowColor: '#ddc433ff',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  segmentText: {
-    fontSize: 25,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-  },
-  selectedSegmentTextRed: {
-    color: '#09161f',
-  },
-  selectedSegmentTextBlue: {
-    color: '#09161f',
-  },
-  unselectedSegmentText: {
-    color: '#888',
-  },
-  buttonBlue: {
-    backgroundColor: '#2a6089',
-    borderRadius: 22,
-    paddingVertical: 14,
-    paddingHorizontal: 42,
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    marginTop: 8,
-    marginBottom: 25,
-    shadowColor: '#2a6089',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  buttonText: {
-    color: '#09161f',
-    fontSize: 15.5,
+  headerLabel: {
+    color: '#2e5a7a',
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    letterSpacing: 1.4,
+    marginBottom: 4,
   },
-  challengeBox: {
-    backgroundColor: '#081620ff',
-    padding: 22,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    marginTop: 12,
-    alignItems: 'center',
-    minHeight: 120,
-    width: '100%',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#35363B',
-  },
-  challengeText: {
-    fontSize: 65,
-    lineHeight: 27,
-    fontWeight: '600',
-    textAlign: 'center',
-    letterSpacing: 0.2,
-  },
-  challengeTextRed: {
-    color: '#ffffffff',
-    fontSize: 17,
-    alignItems: 'center'
-  },
-  challengeTextBlue: {
-    color: '#ffffffff',
-    fontSize: 17
+  headerRoom: {
+    color: '#f0f4f8',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   logoutBtn: {
-    marginTop: 12,
-    backgroundColor: '#f44336',
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 10,
+    backgroundColor: '#0c1c29',
+    borderWidth: 1,
+    borderColor: '#142840',
   },
-  logoutText: {
-    color: '#FFF',
-    fontWeight: '600',
-  }
+  logoutPressed: { opacity: 0.6 },
+  logoutText: { color: '#3d6888', fontSize: 13, fontWeight: '600' },
+
+  /* Title row */
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 20,
+  },
+  pageTitle: {
+    color: '#f0f4f8',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -1,
+  },
+  activePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0e2c1c',
+    borderRadius: 100,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#1a4a2e',
+    gap: 5,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#34c97e',
+  },
+  activePillText: { color: '#34c97e', fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+
+  /* Type switcher */
+  switcher: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 22,
+  },
+  switchBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 13,
+    borderRadius: 14,
+    backgroundColor: '#0c1c29',
+    borderWidth: 1.5,
+    borderColor: '#142840',
+  },
+  switchIcon: { fontSize: 16 },
+  switchLabel: {
+    color: '#2e5a7a',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  /* Filter tags */
+  filtersSection: { marginBottom: 20 },
+  sectionMeta: {
+    color: '#2e5a7a',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    marginBottom: 10,
+  },
+  tagsRow: { flexDirection: 'row', gap: 8, paddingRight: 8 },
+  tag: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 100,
+    backgroundColor: '#0c1c29',
+    borderWidth: 1,
+    borderColor: '#142840',
+  },
+  tagText: { color: '#2e5a7a', fontSize: 13, fontWeight: '600' },
+
+  /* Mission card */
+  missionCard: {
+    backgroundColor: '#0c1c29',
+    borderRadius: 22,
+    padding: 24,
+    borderWidth: 1.5,
+    minHeight: 220,
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  cardMeta: {
+    color: '#2e5a7a',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    marginBottom: 14,
+  },
+  missionText: {
+    color: '#f0f4f8',
+    fontSize: 18,
+    fontWeight: '500',
+    lineHeight: 28,
+  },
+
+  /* Empty state */
+  emptyState: { alignItems: 'center', paddingVertical: 16 },
+  emptyIcon: { fontSize: 40, marginBottom: 14 },
+  emptyTitle: { color: '#f0f4f8', fontSize: 17, fontWeight: '700', marginBottom: 6 },
+  emptyBody: { color: '#2e5a7a', fontSize: 13, textAlign: 'center', lineHeight: 20 },
+
+  /* Timer */
+  timerRow: { marginTop: 22 },
+  timerDivider: {
+    height: 1,
+    backgroundColor: '#142840',
+    marginBottom: 18,
+  },
+  timerInner: { alignItems: 'center' },
+  timerLabel: {
+    color: '#2e5a7a',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    marginBottom: 8,
+  },
+  timerValue: {
+    color: '#f0f4f8',
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: 2,
+    fontVariant: ['tabular-nums'],
+  },
+
+  /* Actions */
+  actions: { gap: 10 },
+  primaryBtn: {
+    borderRadius: 16,
+    paddingVertical: 17,
+    alignItems: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  primaryBtnPressed: { opacity: 0.75 },
+  primaryBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  secondaryBtn: {
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    backgroundColor: '#0c1c29',
+    borderWidth: 1.5,
+    borderColor: '#2a6089',
+  },
+  secondaryBtnPressed: { opacity: 0.7 },
+  secondaryBtnText: { color: '#4a90c4', fontSize: 15, fontWeight: '700' },
+
+  completeBtn: {
+    borderRadius: 16,
+    paddingVertical: 17,
+    alignItems: 'center',
+    backgroundColor: '#0d2218',
+    borderWidth: 1.5,
+    borderColor: '#1c5c38',
+  },
+  completeBtnPressed: { opacity: 0.7 },
+  completeBtnText: { color: '#34c97e', fontSize: 15, fontWeight: '800', letterSpacing: 0.4 },
 });
