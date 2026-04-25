@@ -1,158 +1,254 @@
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { auth, db } from '../firebase.js';
+import { buildDormDocKey } from '../utils/dormIdentity';
 
-export default function HomeScreen() {
+export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [dorm, setDorm] = useState('');
-  const [loading, setLoading] = useState(false); // Loading state
+  const [hallName, setHallName] = useState('');
+  const [roomNumber, setRoomNumber] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleSignup = async () => {
-    const dormTrimmed = dorm.trim().toUpperCase();
-    if (!email || !password || !dormTrimmed) {
-      Alert.alert('Missing info', 'Please fill in all fields.');
+    const hallTrimmed = hallName.trim();
+    const roomTrimmed = roomNumber.trim().toUpperCase();
+    if (!email || !password || !hallTrimmed || !roomTrimmed) {
+      Alert.alert('Missing info', 'Please fill in email, password, hall name, and room number.');
       return;
     }
-
+    const dormKey = buildDormDocKey(hallTrimmed, roomTrimmed);
     try {
-      setLoading(true); // Start loading
-      // Create user in Firebase Auth
+      setLoading(true);
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const uid = userCredential.user.uid;
-
-      // Save dorm in users collection
-      await setDoc(doc(db, 'users', uid), {
-        dorm: dormTrimmed,
-        timestamp: Date.now()
+      const userPayload = {
+        hallName: hallTrimmed,
+        roomNumber: roomTrimmed,
+        dorm: dormKey,
+        timestamp: Date.now(),
+      };
+      await setDoc(doc(db, 'users', uid), userPayload);
+      await setDoc(doc(db, 'dorms', dormKey), {
+        dorm: dormKey,
+        hallName: hallTrimmed,
+        roomNumber: roomTrimmed,
+        timestamp: Date.now(),
       });
-
-      // Also store dorm in dorms collection so dare.tsx works
-      await setDoc(doc(db, 'dorms', dormTrimmed), {
-        dorm: dormTrimmed,
-        timestamp: Date.now()
-      });
-
-      setLoading(false); // Stop loading before navigation
-      router.push({ pathname: '/dare', params: { dorm: dormTrimmed } });
+      setLoading(false);
+      router.push({ pathname: '/dare', params: { dorm: dormKey } });
     } catch (error: any) {
       setLoading(false);
-      console.error("Signup error:", error);
-      Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
+      Alert.alert('Error', error.message || 'Something went wrong.');
     }
   };
 
   return (
-    <View style={styles.screen}>
-      <Image
-        source={require('../assets/images/logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      <View style={styles.card}>
-        <Text style={styles.title}>Register</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#6B6B6B"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#6B6B6B"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Dorm Number (e.g. A-103)"
-          placeholderTextColor="#6B6B6B"
-          value={dorm}
-          onChangeText={setDorm}
-          autoCapitalize="characters"
-        />
+    <SafeAreaView style={s.safe}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={s.scroll}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Brand */}
+          <View style={s.brand}>
+            <View style={s.logoWrap}>
+              <Image
+                source={require('../assets/images/logo.png')}
+                style={s.logo}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={s.brandName}>dormQuest</Text>
+            <Text style={s.brandTag}>your dorm. your mission.</Text>
+          </View>
 
-        {/* Show loading circle instead of button when signing up */}
-        {loading ? (
-          <ActivityIndicator size="large" color="#2a6089" style={{ marginVertical: 14 }} />
-        ) : (
-          <Pressable style={styles.button} onPress={handleSignup}>
-            <Text style={styles.buttonText}>Continue</Text>
+          {/* Form */}
+          <View style={s.form}>
+            <Text style={s.formTitle}>Create account</Text>
+
+            <TextInput
+              style={s.input}
+              placeholder="Email address"
+              placeholderTextColor="#3d5a70"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <TextInput
+              style={s.input}
+              placeholder="Password"
+              placeholderTextColor="#3d5a70"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            <TextInput
+              style={s.input}
+              placeholder="Hall / building (e.g. Ellicott Hall)"
+              placeholderTextColor="#3d5a70"
+              value={hallName}
+              onChangeText={setHallName}
+              autoCapitalize="words"
+            />
+            <TextInput
+              style={s.input}
+              placeholder="Room number (e.g. A-103)"
+              placeholderTextColor="#3d5a70"
+              value={roomNumber}
+              onChangeText={setRoomNumber}
+              autoCapitalize="characters"
+            />
+
+            {loading ? (
+              <ActivityIndicator size="large" color="#2a6089" style={s.loader} />
+            ) : (
+              <Pressable
+                style={({ pressed }) => [s.btn, pressed && s.btnDown]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  handleSignup();
+                }}
+              >
+                <Text style={s.btnText}>Get Started</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {/* Footer */}
+          <Pressable
+            onPress={() => router.push('/login')}
+            style={s.footer}
+          >
+            <Text style={s.footerText}>Already have an account?</Text>
+            <Text style={s.footerLink}> Sign in</Text>
           </Pressable>
-        )}
-      </View>
-
-      <Pressable onPress={() => router.push('/login')}>
-        <Text style={{ color: '#2a6089', marginTop: 0 }}>
-          Already have an account? Log in
-        </Text>
-      </Pressable>
-    </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
+const s = StyleSheet.create({
+  safe: {
     flex: 1,
     backgroundColor: '#09161f',
-    justifyContent: 'flex-start',
+  },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingBottom: 32,
+  },
+  brand: {
     alignItems: 'center',
+    paddingTop: 48,
+    paddingBottom: 44,
   },
-  card: {
-    backgroundColor: '#09161f',
-    borderRadius: 24,
-    padding: 28,
-    width: '90%',
-    maxWidth: 360,
-    alignItems: 'center',
-  },
-  title: {
-    color: '#FFF',
-    fontSize: 23,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    marginTop: 1,
-    textAlign: 'center',
-  },
-  input: {
-    width: '100%',
-    backgroundColor: '#081620ff',
-    color: '#FFF',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 16,
-    fontSize: 16,
+  logoWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: 22,
+    backgroundColor: '#0d1e2b',
     borderWidth: 1,
-    borderColor: '#35363B',
-    fontWeight: '600',
-  },
-  button: {
-    backgroundColor: '#2a6089',
-    borderRadius: 32,
-    width: '80%',
-    paddingVertical: 14,
+    borderColor: '#162a3a',
     alignItems: 'center',
-    marginBottom: 0
-  },
-  buttonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    justifyContent: 'center',
+    marginBottom: 18,
   },
   logo: {
-    width: 100,
-    height: 100,
-    marginTop: 170,
-    marginBottom: 2,
+    width: 50,
+    height: 50,
+  },
+  brandName: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+  },
+  brandTag: {
+    color: '#3d5a70',
+    fontSize: 13,
+    marginTop: 6,
+    letterSpacing: 0.3,
+  },
+  form: {
+    flex: 1,
+  },
+  formTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: 20,
+  },
+  input: {
+    backgroundColor: '#0d1e2b',
+    color: '#ffffff',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    fontSize: 15,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#162a3a',
+    fontWeight: '500',
+  },
+  loader: {
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  btn: {
+    backgroundColor: '#2a6089',
+    borderRadius: 14,
+    paddingVertical: 17,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  btnDown: {
+    opacity: 0.8,
+  },
+  btnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingTop: 32,
+    paddingBottom: 8,
+  },
+  footerText: {
+    color: '#3d5a70',
+    fontSize: 14,
+  },
+  footerLink: {
+    color: '#2a6089',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

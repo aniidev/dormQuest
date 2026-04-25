@@ -7,7 +7,7 @@
     "icon": "./assets/images/logo.png",
     "scheme": "dormquest",
     "userInterfaceStyle": "automatic",
-    "notification": {
+    "extra": {
       "vapidPublicKey": "BF7Jj_Gn09ez1dOjlOLHPx9FehZ1Q-YSw3UDLVKSSjLsVx2BLShaJOqqyVMVVTqk_zyTo3A9PAhL9HoWV5VaB7c"
     },
     "newArchEnabled": true,
